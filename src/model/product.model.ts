@@ -8,7 +8,6 @@ const ProductSchema = new Schema(
   },
   {
     timestamps: true,
-    _id: false,
   }
 );
 

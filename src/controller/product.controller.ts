@@ -21,18 +21,14 @@ export interface IProductCreate {
   isMarketable: boolean;
 }
 
-export const listAllProducts = (
+export const listAllProducts = async (
   _req: Express.Request,
   res: Express.Response
 ) => {
   try {
-    ProductModel.find({})
-      .then((data) => {
-        res.status(200).json(data);
-      })
-      .catch((error) => {
-        res.json({ error });
-      });
+    const product = await ProductModel.find().lean();
+
+    res.json({ success: true, product });
   } catch (error) {
     res.json({ error });
   }
@@ -45,10 +41,7 @@ export const getProduct = async (
   try {
     const sku = Number(_req.params.sku);
 
-    console.log({ sku });
     const product = await ProductModel.findOne({ sku }).exec();
-
-    console.log({ product });
   } catch (error) {
     res.json({ error });
   }
@@ -62,8 +55,6 @@ export const deleteProduct = async (
     const sku = _req.query.sku;
 
     const product = await ProductModel.findOneAndDelete({ sku });
-
-    console.log("product deleted", product);
 
     if (product) {
       res.json({
@@ -84,34 +75,11 @@ export const editProduct = async (
     const sku = _req.query.sku;
 
     const filter = { sku };
-    const update = {
-      sku: 43264,
-      name: "L'Oréal Professionnel Expert Absolut Repair Cortex Lipidium - Máscara de Reconstrução 500g",
-      inventory: {
-        quantity: 1,
-        warehouses: [
-          {
-            locality: "SP",
-            quantity: 110,
-            type: "ECOMMERCE",
-          },
-          {
-            locality: "MOEMA",
-            quantity: 1,
-            type: "PHYSICAL_STORE",
-          },
-        ],
-      },
-      isMarketable: false,
-    };
+    const update = { ..._req.body };
 
     const product = await ProductModel.findOneAndUpdate(filter, update, {
       new: true,
-      returnOriginal: false,
-      rawResult: true,
     });
-
-    console.log("product update", product);
 
     if (product) {
     }
@@ -129,13 +97,9 @@ export const createProduct = async (
 
     const existingProduct = await ProductModel.findOne({ sku });
 
-    console.log({ existingProduct });
-
     if (existingProduct) {
-      if (existingProduct.sku) {
-        console.log("aqui no existing product 1");
-
-        return res.json({
+      if (existingProduct) {
+        res.json({
           success: false,
           message:
             "Dois produtos são considerados iguais se os seus skus forem iguais",
@@ -156,11 +120,11 @@ export const createProduct = async (
         isMarketable: !!warehousesLength,
       };
 
-      const product = await ProductModel.create({ newProduct });
+      const product = await ProductModel.create({ ...newProduct });
 
-      console.log("created product", product);
+      await product.save();
 
-      return res.json({ success: true, product: newProduct });
+      res.json({ success: true, product });
     }
   } catch (error) {
     res.json({ success: false, error });
